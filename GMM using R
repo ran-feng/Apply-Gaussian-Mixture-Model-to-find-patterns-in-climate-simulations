@@ -1,0 +1,46 @@
+rm(list=ls(all=T))
+#read the data
+#ncluster = c(6, 6, 6)
+ncluster = 5
+filnames = c("BIC_max_XXXXX.txt","Data_cluster_XXXXX.txt")
+pltnames = c("hist_XXXXX.pdf","exp_cluster_BIC_XXXXX.pdf")
+data_raw<-read.table("t2m_XXXXX_TREFHT.txt", sep="",
+                    header=FALSE,
+                    col.names=c("plio"),
+                    colClasses=c("numeric")
+)
+print("##################")
+summary(data_raw)
+dst <- dist(data_raw)
+dst <- data.matrix(dst)
+colorpal=colors()[seq(310,655)]
+cc=rainbow(nrow(dst))
+labels=seq(1,length(data_raw[,1]))
+data.sub=data_raw
+############################
+########cluster analysis
+library(mclust)
+###############!!!uncomment these following lines for the first-time excecution 
+###############find out the optimal number of clusters
+# data.mclust=Mclust(data.sub)
+# bic=round(data.mclust$BIC,0)
+# print(bic)
+# pdf(pltnames[2],height=6, width=8 )
+# bic_max = apply(bic,1,max)
+# plot(seq(1,length(bic_max)), bic_max, xlim=c(1,length(bic_max)), ylim = c(min(bic_max), max(bic_max)),xlab="N cluasters", ylab = "BIC" )
+# par(new=TRUE)
+# plot(seq(1,length(bic_max)), fitted(lm(bic_max~poly(seq(1,length(bic_max)),2, raw=TRUE))),xlim=c(1,length(bic_max)), ylim = c(min(bic_max), max(bic_max)), type="l", col="red", yaxt="n", xaxt="n", xlab="", ylab="")
+# dev.off()
+# library('caroline')
+# write.delim(bic_max, filnames[1], append = FALSE, quote = FALSE, sep = "\t")
+###########end of first-time excecution  
+#################calculate the labels: second-time excecution 
+######## comment the following lines for the first-time execution 
+  data.mclust=Mclust(data.sub,G=ncluster)
+  bic=round(data.mclust$BIC,0)
+  print(bic)
+  label_cluster=data.mclust$classification
+  data_out=data.frame(data_raw,label_cluster)
+  library(caroline)
+  write.delim(data_out, file = filnames[2], append = FALSE, quote = FALSE, sep = "\t")
+#######end
