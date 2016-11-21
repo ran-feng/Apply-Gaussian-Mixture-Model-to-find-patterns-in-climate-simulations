@@ -1,0 +1,115 @@
+load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_code.ncl"
+load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_csm.ncl"
+load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/contributed.ncl"
+load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/shea_util.ncl"
+
+begin
+dir = "/glade/p/cesm/palwg_dev/pliocene/amwg/"
+datacntl = "climo_CA_BSC002/b.e12.B1850CN.f09_g16.plioCA_BSC.002/yrs601-650/b.e12.B1850CN.f09_g16.plioCA_BSC.002_ANN_climo.nc"
+
+latst = 50
+lated = 90.
+lonst = 0.
+loned = 360.
+
+;;; read a piece of data example, so the cluster labels can have a reference 
+f=addfile(dir+datacntl,"r")
+t = f->TREFHT(0,:,:)
+landmask = f->LANDFRAC(0,:,:)
+
+expnames = (/"plio", "hco2", "lorb", "horb", "horb_ann", "bsc", "ca", "ca_bsc"/)
+expstrings = (/"Plio","PlioHCO2","PlioMinInso-July","PlioMaxInso-July","PlioMaxInso-ann","PlioBSC","PlioCA","PlioCA_BSC"/)
+plio_mask = "../../../landmask/"+(/"plio_landmask.nc", "plio_landmask.nc", "plio_landmask.nc", "plio_landmask.nc","plio_landmask.nc", \
+                                "plioBSC_landmask.nc", "plioCA_landmask.nc", "plioCA_BSC_landmask.nc"/)
+plots = new(9, graphic)
+plot_panel = new(10, graphic)
+;;; plot properties
+  colorscheme0 = (/ \
+                   (/252,141,89/) ,\
+                   (/254,224,139/) ,\
+                   (/255,255,191/) ,\
+                   (/217,239,139/) ,\
+                   (/26,152,80/) /)
+  colorscheme = tofloat(colorscheme0)/255.
+ncol = dimsizes(colorscheme)
+wks=gsn_open_wks("eps","pattern_label_all_exp")
+  res = True                                     ; plot mods desired
+  res@cnFillOn             = True               ; turns on the color
+  res@mpFillOn             = False              ; turns off continent gray
+  res@cnLinesOn            = False              ; turn off contour lines
+
+  res@gsnPolar             = "NH"               ; specify the hemisphere
+  res@mpMinLatF            = 55                 ; specify min lat
+  res@mpGridLatSpacingF    = 15.
+  res@mpGridLonSpacingF    = 60.
+  res@mpDataBaseVersion = "Ncarg4_1"
+
+  res@gsnDraw              = False
+  res@gsnFrame             = False
+  res@gsnRightString       = ""
+
+  res@cnFillOn         = True               ; color Fill
+  res@cnFillMode       = "RasterFill"
+  res@cnLinesOn        =  False             ; Turn off contour lines
+  res@cnLevelSelectionMode = "ExplicitLevels" ; set explict contour levels
+  res@cnLevels         = tobyte( ispan(1,4,1) )   ;one less than ninfo
+  res@cnFillPalette    = colorscheme        ; distinct colors for categories
+  res@gsnSpreadColors  = False              ; use each color sequentially
+
+do k = 0, dimsizes(expnames)-1
+;;; set up the paleo_landmask
+   flnd = addfile(plio_mask(k),"r")
+   landfrac = flnd->LANDFRAC(0,:,:)
+   basename = "./pliocene_"+k       ; files EOCENE.lines and EOCENE.names created
+   paleo_outline (landfrac,landfrac&lat,landfrac&lon, 1,basename)
+  res@mpDataSetName     = basename
+  res@gsnPolarLabelFontHeightF= .03
+  res@gsnPolarLabelDistance = 1.08
+;;; read cluster labels
+  data_in = readAsciiTable("Data_cluster_"+expnames(k)+".txt", 2, "float", (/1/))
+  tsa = data_in(:,1)
+  printMinMax(tsa,0)
+  ;;; in this case, the cluster analysis is done for data between 50 N and 90N
+        t({50:90},:)=(/onedtond(tsa,dimsizes(t({50:90},:)))/)
+        ;;; smooth out single-point clusters on a geographic map. 
+        t({50:90},:) = smth9_Wrap(t({50:90},:), 0.5, 0.25, True)
+        t = decimalPlaces(t, 0, True)
+   ;;; output the smoothed labels
+         opt = True
+         opt@fout = "Data_cluster_"+expnames(k)+"_sm.txt"
+         opt@title = "plio    label"
+         data_out = new((/dimsizes(tsa),2/),"float")
+        data_out(:,0) = data_in(:,0)
+        data_out(:,1) = ndtooned(t({50:90},:))
+         ;write_matrix (data_out, "2f9.2", opt)
+    ;;; adjust labels to be float number to have correct color code A1-color<A<A2-color for A to be mapped with A-color
+        t = t-1.e-3
+        if ( k .lt. 7 ) then
+           res@lbLabelBarOn = False
+        else
+           res@lbLabelBarOn = True
+           res@lbLabelPosition  = "Center"           ; label position
+           res@lbLabelAlignment = "BoxCenters"       ; label orientation
+           res@lbLabelStride    = 1
+           res@lbLabelAutoStride = False             ; in V6.1.0 and up, this is defaulted
+           res@lbLabelStrings   = ispan(1,6,1)
+           res@lbLabelFontHeightF = 0.05
+           res@lbLabelFontThicknessF = 1.
+           res@lbOrientation = "Vertical"
+           res@lbLeftMarginF        = 1.0
+           res@lbRightMarginF        = 1.4
+           res@lbLabelOffsetF       = -0.6
+        end if
+           res@gsnLeftString        = expstrings(k)
+           res@gsnLeftStringFontHeightF = 0.035
+           res@gsnLeftStringOrthogonalPosF = 0.1
+           res@gsnLeftStringParallelPosF = 0.3
+           plots(k)=gsn_csm_contour_map_polar(wks,t,res)
+end do
+
+resp            =       True
+resp@gsnMaximize        =       True
+plot_panel(0:4) = plots(0:4)
+plot_panel(6:8) = plots(5:7)
+gsn_panel(wks,  plot_panel, (/2, 5/), resp)
+end
