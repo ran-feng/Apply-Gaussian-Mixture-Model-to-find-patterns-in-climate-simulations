@@ -1,0 +1,25 @@
+#! /bin/csh -fx
+#BSUB -q geyser         # queue
+#BSUB -P P93300624      # project code
+#BSUB -W 24:00          # wall-clock time (hrs:mins)
+#BSUB -n 1              # number of tasks in job
+#BSUB -R "span[ptile=1]"     # run 16 MPI tasks per node
+#BSUB -J cluster_all          # job name
+#BSUB -o cluster.%J.out   # output file name in which %J is replaced by the job ID
+#BSUB -e cluster.%J.err   # error file name in which %J is replaced by the job ID
+
+#set expnames = ( plio horb lorb lco2 hco2 horb_ann ca_bsc bsc ca )
+set expnames = ( plio horb lorb lco2 hco2 horb_ann ca_bsc bsc ca )
+set R = /glade/apps/opt/r/3.1.0/intel/12.1.5.opt/bin/R
+
+# need to switch cluster_ALL_single to cluster_ALL if without info about the # of clusters
+foreach expname ( $expnames )
+    cp cluster_ALL_single.r cluster_ALL_single_${expname}.r
+    sed -i 's/BIC_max_XXXXX.txt/BIC_max_'"${expname}"'.txt/g' cluster_ALL_single_${expname}.r
+    sed -i 's/Data_cluster_XXXXX.txt/Data_cluster_'"${expname}"'.txt/g' cluster_ALL_single_${expname}.r
+    sed -i 's/hist_XXXXX.pdf/hist_'"${expname}"'.pdf/g' cluster_ALL_single_${expname}.r
+    sed -i 's/exp_cluster_BIC_XXXXX.pdf/exp_cluster_BIC_'"${expname}"'.pdf/g' cluster_ALL_single_${expname}.r
+    sed -i 's/t2m_XXXXX_TREFHT.txt/t2m_'"${expname}"'_TREFHT.txt/g' cluster_ALL_single_${expname}.r
+    ${R} CMD BATCH cluster_ALL_single_${expname}.r
+    rm cluster_ALL_single_${expname}.r
+end
