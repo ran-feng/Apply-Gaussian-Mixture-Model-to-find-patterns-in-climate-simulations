@@ -1,0 +1,64 @@
+load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_code.ncl"
+load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_csm.ncl"
+load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/contributed.ncl"
+load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/shea_util.ncl"
+
+begin
+setfileoption("nc","SuppressClose",False)
+dir = "/glade/p/cesm/palwg_dev/pliocene/amwg/"
+; cntl is the control that all the runs are comparing to RunA minus Control is an example output
+datacntl = (/"/glade/p/cesm/palwg_dev/output/ccsm4/b40.1850.track1.1deg.006/atm/proc/climo/yr1250-1300/b40.1850.track1.1deg.006_ANN_climo.nc"/)
+; a list of experiments
+datasen = (/ \
+          "plio.002.cam.h0.TREFHT.0601.0650.nc",\
+          "pliohorb.001.cam.h0.TREFHT.0601.0650.nc",\
+          "pliolorb.001.cam.h0.TREFHT.0650.0699.nc", \
+          "pliolCO2.001.cam.h0.TREFHT.0601.0650.nc", \
+          "pliohCO2.001.cam.h0.TREFHT.0601.0650.nc", \
+          "pliohorb.3159.001.cam.h0.TREFHT.0550.0599.nc",\
+          "plioCA_BSC.002.cam.h0.TREFHT.0601.0650.nc", \
+          "plio.FV1.003bsc_ext.cam2.h0.TREFHT.0601.0650.nc", \
+          "plioCA.001.cam.h0.TREFHT.0801.0850.nc"/)
+; lat/lon range
+latst = 50
+lated = 90.
+lonst = 0.
+loned = 360.
+; tags for each .txt data file
+expnames = (/"plio", "horb", "lorb", "lco2", "hco2", "horb_ann", "ca_bsc", "bsc", "ca"/)
+; variables that are interesting
+vars = (/"TREFHT"/)
+; Jan to December average, could be (/3, 6, 7/) for April, July and August
+months = ispan(0,11,1)
+
+do j=0,dimsizes(datasen)-1
+   f=addfile(datacntl,"r")
+   x_cntl=f->$vars$(0,:,:)
+   delete(f)
+
+   f=addfile(datasen(j),"r")
+   x_s0=clmMonTLL(f->$vars$)
+   x_s=dim_avg_n_Wrap(x_s0(months,:,:), (/0/))
+   delete(f)
+
+   x_s=x_s-x_cntl   ; calculate anomalies 
+   x_s_out=x_s({latst:lated},{lonst:loned})
+   printMinMax(x_s,0)
+
+   x_s1d=ndtooned(x_s_out)
+   if(j .eq. 0) then
+        data_out=new((/dimsizes(x_s1d), dimsizes(vars)/),float)
+   end if
+   data_out(:,0) = x_s1d
+   ; write out files
+   opt = True
+   opt@fout  = "t2m_"+expnames(j)+"_"+vars+".txt"
+   fmt = dimsizes(expnames)+"f9.2"
+   write_matrix(data_out, fmt,  opt)
+   delete(x_s)
+   delete(x_s0)
+   delete(x_s_out)
+   delete(x_cntl)
+   delete(x_s1d)
+end do
+end
