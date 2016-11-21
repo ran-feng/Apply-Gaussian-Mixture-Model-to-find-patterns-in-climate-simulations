@@ -1,0 +1,9 @@
+1. Edit and run "extract_anomalies_from_model_output" using NCAR command language.
+ncl  your script.ncl
+output: a list of .txt files calculaing anomalies of model output variables relative to a given control case
+2. Run R script to calculate BIC --> a cshell script is used to run multiple R scripts at once. 
+3. Decide on the # of clusters based on the BIC values from STEP 3. 
+4. Uncomment sections in 3
+5. Get the labels from the Gaussian Mixture Model
+6. Map these labels back to the lat/lon cordinate using "map_back" ncl script.
+7. Done!
